@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whack-a-Creeper</title>
+  <style>
+    /* style.css */
+
+    /* Pause button styling */
+    #pauseButton {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 1001; /* Ensure it's above the background */
+        background-color: rgba(255, 255, 255, 0.8); /*Semi Transparent*/
+        border: none;
+        border-radius: 4px;
+
+    }
+
+    /* Pause overlay styling */
+    #pauseOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+      display: none; /* Hidden by default */
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    #pauseMenu {
+      background-color: #222;
+      padding: 20px;
+      border: 2px solid #fff;
+      text-align: center;
+      color: #fff;
+    }
+
+    #resumeButton, #exitButton {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;  /* Make buttons block-level for easier styling */
+      width: 100%; /* Make button span across menu*/
+      margin-bottom: 5px; /* Add a small margin between the two*/
+      background-color: #4CAF50; /* Green */
+      border: none;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+
+    }
+    #exitButton{
+        background-color: firebrick;
+    }
+
+    /* Reset default margins and paddings */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Basic body styling */
+    body {
+      background-color: #000; /* Fallback background color */
+      font-family: Arial, sans-serif;
+      overflow: hidden; /* Prevent scrolling */
+    }
+
+    /* Dynamic animated background */
+    #background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -2;
+    }
+    #background video{
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Ensure the video covers the entire background */
+
+    }
+
+
+    /* Game container styling */
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* Creeper styling */
+    .creeper {
+      position: absolute;
+      width: 100px;  /* Adjust as needed */
+      height: 100px; /* Adjust as needed */
+      background-image: url('creeper.jpg'); /* <-- Replace with your creeper image */
+      background-size: cover;
+      cursor: pointer;
+      /* Spawn animation */
+      animation: spawnAnimation 0.3s ease-out;
+        animation-play-state: running; /*Default to run*/
+
+
+    }
+
+    /* Spawning animation: scales up and fades in */
+    @keyframes spawnAnimation {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    /* Kill animation: scales up and fades out */
+    @keyframes killAnimation {
+      0%   { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    .creeper.kill {
+      animation: killAnimation 0.3s forwards;
+        animation-play-state: running; /*Default to run*/
+
+    }
+
+    /* Explosion animation when a creeper explodes */
+    @keyframes explodeAnimation {
+      0%   { transform: scale(1); opacity: 1; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+    .creeper.explode {
+      animation: explodeAnimation 0.3s forwards;
+        animation-play-state: running; /*Default to run*/
+
+    }
+
+    /* Blinking animation for the "about-to-explode" effect */
+    @keyframes blinkAnimation {
+      0%   { filter: brightness(1); }
+      50%  { filter: brightness(2); }
+      100% { filter: brightness(1); }
+    }
+    .creeper.about-to-explode {
+      animation: blinkAnimation 0.5s infinite;
+      animation-play-state: running; /*Default to run*/
+
+    }
+
+    /* Diamond sword that follows the cursor */
+    #sword {
+      position: fixed;
+      width: 50px;  /* Adjust size as needed */
+      height: 50px;
+      background-image: url('sword.png'); /* <-- Replace with your diamond sword image */
+      background-size: cover;
+      pointer-events: none; /* Let clicks pass through */
+      z-index: 1000;
+    }
+
+    /* Death overlay styling */
+    #deathOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+      display: none; /* Hidden by default */
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    #deathMessage {
+      background-color: #222;
+      padding: 20px;
+      border: 2px solid #fff;
+      text-align: center;
+      color: #fff;
+    }
+    #restartButton {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dynamic animated background -->
+    <div id="background">
+        <video autoplay loop muted>
+            <source src="bg.mp4" type="video/mp4">  <!-- Replace with your video URL -->
+            <!-- Add other video formats (webm, ogg) for cross-browser compatibility if needed -->
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+  <!-- Pause Button -->
+  <button id="pauseButton">Pause</button>
+
+  <!-- Pause Menu -->
+  <div id="pauseOverlay">
+    <div id="pauseMenu">
+      <p>Game Paused</p>
+      <button id="resumeButton">Resume</button>
+      <a href="YOUR_MAIN_MENU_URL_HERE" id="exitButton">Exit to Main Menu</a> <!-- Replace with your main menu URL -->
+    </div>
+  </div>
+
+  <!-- Main game container (holds creepers) -->
+  <div id="gameContainer"></div>
+
+  <!-- Diamond sword that follows the player's cursor -->
+  <div id="sword"></div>
+
+  <!-- Death overlay: shown when a creeper explodes -->
+  <div id="deathOverlay">
+    <div id="deathMessage">
+      <p id="deathText">You got exploded! Game Over!</p> <!-- Added id="deathText" -->
+      <button id="restartButton">One more round?  I promise not to judge your reaction time… much. 😏</button>
+    </div>
+  </div>
+
+  <script>
+    /* script.js */
+
+    /*
+     * Enhanced Whack-a-Creeper Game
+     */
+
+    /* -------------------------- Global Variables -------------------------- */
+    let gameContainer, deathOverlay, restartButton, explosionSound, sword, deathText;
+    let creepers = []; // Array to hold active creeper objects
+    let spawnerIntervalId; // ID for the creeper spawner interval
+    let allowedTime = 3500; // Time in ms before a creeper explodes (decreases over time)
+    let spawnInterval = 2000; // Interval (ms) between creeper spawns (decreases with difficulty)
+    let gameOver = false;
+    let score = 0;
+    let isPaused = false; // Add a pause state variable
+    let pauseButton, pauseOverlay, resumeButton, exitButton; // Variables for pause elements
+
+    // Array of death messages
+    const deathMessages = [
+    "You let the Creeper escape… guess I’m not the only one chasing after you.",
+    "Boom. Just like what you’re doing to my heart.",
+    "You missed… but don’t worry, I’d never miss a chance with you.",
+    "That Creeper got away—should I be jealous?",
+    "Too slow… good thing I like taking things slow with you.",
+    "Looks like you’re struggling… need some hands-on guidance?",
+    "Explosions everywhere, but the only thing blowing up is my interest in you.",
+    "If this was a test, you’d fail—good thing I like a little chaos.",
+    "You keep missing… or are you just distracted by me?",
+    "Creepers aren’t the only thing dangerous around here… be careful, I bite.",
+    "Maybe if I was the Creeper, you’d finally focus.",
+    "Oops, you let it go… just like I’m trying not to let this moment slip.",
+    "You lost, but don’t worry—I’d still choose you every time.",
+    "Another miss? At this rate, I might have to punish you.",
+    "If I were the Creeper, would you handle me differently?"
+];
+
+
+
+    /* -------------------------- Initialization -------------------------- */
+    document.addEventListener("DOMContentLoaded", function() {
+      // Get DOM element references
+      gameContainer = document.getElementById("gameContainer");
+      deathOverlay = document.getElementById("deathOverlay");
+      restartButton = document.getElementById("restartButton");
+      sword = document.getElementById("sword");
+      pauseButton = document.getElementById("pauseButton"); // Get pause button
+      pauseOverlay = document.getElementById("pauseOverlay"); // Get pause overlay
+      resumeButton = document.getElementById("resumeButton");  // Get resume button
+      exitButton = document.getElementById("exitButton");    // Get exit button
+      deathText = document.getElementById("deathText"); // Get death message text element
+
+
+      // Setup diamond sword to follow the mouse cursor
+      document.addEventListener("mousemove", function(e) {
+        // Offset by half the sword's dimensions (assumed 50px by 50px)
+        sword.style.left = (e.clientX - 25) + "px";
+        sword.style.top = (e.clientY - 25) + "px";
+      });
+
+      // Initialize the explosion sound (replace the placeholder with your asset)
+      explosionSound = new Audio("blast.mp3"); // <-- Replace with your explosion sound URL
+
+      // Setup restart button event
+      restartButton.addEventListener("click", resetGame);
+
+        // Setup pause button event
+        pauseButton.addEventListener("click", togglePause);
+
+        // Setup resume button event
+        resumeButton.addEventListener("click", togglePause);
+
+      // Start the game
+      startGame();
+    });
+
+    /* -------------------------- Game Functions -------------------------- */
+
+    /*
+     * startGame()
+     */
+    function startGame() {
+      // Reset game state
+      gameOver = false;
+      score = 0;
+      allowedTime = 3500;
+      spawnInterval = 2000;
+      creepers = [];
+
+      // Hide the death overlay if visible
+      deathOverlay.style.display = "none";
+        pauseOverlay.style.display = "none";
+
+
+      // Clear any existing creepers from the container
+      gameContainer.innerHTML = "";
+
+      // Start the interval to spawn creepers periodically
+      spawnerIntervalId = setInterval(function() {
+        // Limit maximum creepers on screen (e.g., maximum 5 at a time)
+        if (!gameOver && !isPaused && creepers.length < 5) { // Check for pause
+          spawnCreeper();
+        }
+      }, spawnInterval);
+
+      // Gradually increase difficulty
+      setInterval(function() {
+        if (!gameOver && !isPaused) { // Check for pause
+          allowedTime = Math.max(500, allowedTime - 50);
+          spawnInterval = Math.max(800, spawnInterval - 50);
+        }
+      }, 5000);
+
+      // Optionally, spawn one creeper immediately
+      spawnCreeper();
+    }
+
+    /*
+     * spawnCreeper()
+     */
+    function spawnCreeper() {
+      if (gameOver || isPaused) return; // Don't spawn if paused
+
+      // ... (rest of the spawnCreeper function remains the same) ...
+          // Create a new creeper DOM element
+        const creeperEl = document.createElement("div");
+        creeperEl.classList.add("creeper");
+
+        // Calculate a random position within the game container boundaries
+        const containerRect = gameContainer.getBoundingClientRect();
+        const creeperSize = 100; // Matches the CSS width/height of the creeper
+        const maxX = containerRect.width - creeperSize;
+        const maxY = containerRect.height - creeperSize;
+        const randomX = Math.random() * maxX;
+        const randomY = Math.random() * maxY;
+        creeperEl.style.left = randomX + "px";
+        creeperEl.style.top = randomY + "px";
+
+        // Append the creeper to the game container
+        gameContainer.appendChild(creeperEl);
+
+        // Create a creeper object to manage its timers and state
+        const creeper = {
+          element: creeperEl,
+          spawnTime: Date.now(),
+          allowedTime: allowedTime, // Use the current allowed time for this creeper
+          explosionTimeout: null,
+          blinkTimeout: null,
+          clicked: false // Flag to track if this creeper has been clicked
+        };
+
+        // Set a timeout for the creeper to explode if not clicked in time
+        creeper.explosionTimeout = setTimeout(function() {
+          if (!creeper.clicked) {
+            creeperExplode(creeper);
+          }
+        }, creeper.allowedTime);
+
+        // Set a timeout to add the blinking "about-to-explode" effect 500ms before explosion
+        const blinkDelay = Math.max(0, creeper.allowedTime - 1500);
+        creeper.blinkTimeout = setTimeout(function() {
+          if (!creeper.clicked) {
+            creeper.element.classList.add("about-to-explode");
+          }
+        }, blinkDelay);
+
+        // Add a click event listener to handle the creeper being whacked
+        creeperEl.addEventListener("click", function() {
+          handleCreeperClick(creeper);
+        });
+
+        // Add the creeper to the global creepers array
+        creepers.push(creeper);
+
+    }
+
+    /*
+     * handleCreeperClick(creeper)
+     */
+    function handleCreeperClick(creeper) {
+      if (gameOver || creeper.clicked || isPaused) return; // Check for pause
+      creeper.clicked = true;
+
+       // ... (rest of the handleCreeperClick function remains the same) ...
+          // Clear pending timeouts
+        clearTimeout(creeper.explosionTimeout);
+        clearTimeout(creeper.blinkTimeout);
+
+        // Remove blinking class if present
+        creeper.element.classList.remove("about-to-explode");
+
+        // Add kill animation class
+        creeper.element.classList.add("kill");
+
+        // Increase score (you can display this score if desired)
+        score++;
+
+        // Remove the creeper element after the kill animation (0.3s duration)
+        setTimeout(function() {
+          if (gameContainer.contains(creeper.element)) {
+            gameContainer.removeChild(creeper.element);
+          }
+        }, 300);
+
+        // Remove the creeper from the global creepers array
+        creepers = creepers.filter(c => c !== creeper);
+
+
+    }
+
+    /*
+     * creeperExplode(creeper)
+     */
+    function creeperExplode(creeper) {
+      if (gameOver || isPaused) return; // Don't explode if paused
+      clearTimeout(creeper.blinkTimeout);
+
+      // ... (rest of the creeperExplode function remains the same) ...
+        // Remove blinking effect (if any) and add explosion animation class
+        creeper.element.classList.remove("about-to-explode");
+        creeper.element.classList.add("explode");
+
+        // Play explosion sound
+        explosionSound.currentTime = 0;
+        explosionSound.play().catch(() => {});
+
+        // Remove the creeper element after explosion animation (0.3s)
+        setTimeout(function() {
+          if (gameContainer.contains(creeper.element)) {
+            gameContainer.removeChild(creeper.element);
+          }
+        }, 300);
+
+        // End the game since a creeper exploded
+        gameOverFunc();
+
+    }
+
+    /*
+     * gameOverFunc()
+     */
+    function gameOverFunc() {
+    // ... (rest of the gameOverFunc function remains the same, except for clearing isPaused) ...
+     if (gameOver) return;
+      gameOver = true;
+        isPaused = false; // Ensure game is not paused when game over
+
+      // Clear the creeper spawner interval
+      clearInterval(spawnerIntervalId);
+
+      // Remove all active creepers
+      creepers.forEach(creeper => {
+        clearTimeout(creeper.explosionTimeout);
+        clearTimeout(creeper.blinkTimeout);
+        if (gameContainer.contains(creeper.element)) {
+          gameContainer.removeChild(creeper.element);
+        }
+      });
+      creepers = [];
+
+        // Randomize death message
+        const randomIndex = Math.floor(Math.random() * deathMessages.length);
+        deathText.textContent = deathMessages[randomIndex];
+
+      // Display the death overlay
+      deathOverlay.style.display = "flex";
+
+    }
+
+    /*
+     * resetGame()
+     */
+    function resetGame() {
+     // ... (rest of the resetGame function remains the same) ...
+        clearInterval(spawnerIntervalId);
+      gameOver = false;
+      score = 0;
+      allowedTime = 3500;
+      spawnInterval = 2000;
+      creepers = [];
+      gameContainer.innerHTML = "";
+      deathOverlay.style.display = "none";
+        pauseOverlay.style.display = "none"; // Hide pause overlay
+      isPaused = false;  // Ensure game is not paused
+      startGame();
+    }
+
+
+
+    /*
+     * togglePause()
+     * Pauses or unpauses the game.
+     */
+    function togglePause() {
+        isPaused = !isPaused; // Toggle the pause state
+
+        if (isPaused) {
+            // Pause the game
+            clearInterval(spawnerIntervalId); // Stop creeper spawning
+            creepers.forEach(creeper => {
+                clearTimeout(creeper.explosionTimeout);
+                clearTimeout(creeper.blinkTimeout);
+                // Crucial:  Pause animations.  Requires storing animation state.
+                 creeper.element.style.animationPlayState = 'paused';
+
+
+            });
+            pauseOverlay.style.display = "flex"; // Show the pause menu
+
+        } else {
+            // Unpause the game
+            // Resume creeper spawning (with adjusted interval)
+            spawnerIntervalId = setInterval(() => {
+                if (!gameOver && creepers.length < 5 && !isPaused ) {
+                    spawnCreeper();
+                }
+            }, spawnInterval);
+
+
+            creepers.forEach(creeper => {
+                // Calculate remaining time for the creeper
+                 let remainingTime = creeper.allowedTime - (Date.now() - creeper.spawnTime);
+                 creeper.explosionTimeout = setTimeout(() => {
+                    if (!creeper.clicked && !isPaused) { // Check isPaused again!
+                        creeperExplode(creeper);
+                    }
+
+                  }, remainingTime > 0 ? remainingTime : 0);
+
+                //resume blinking
+                const blinkDelay = Math.max(0,  remainingTime - 1500);
+                creeper.blinkTimeout = setTimeout(function() {
+                if (!creeper.clicked && !isPaused) { //and again here!
+                  creeper.element.classList.add("about-to-explode");
+                  }
+                 }, blinkDelay);
+
+                creeper.element.style.animationPlayState = 'running';
+            });
+
+
+
+            pauseOverlay.style.display = "none"; // Hide the pause menu
+        }
+    }
+  </script>
+</body>
+</html>
